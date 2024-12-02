@@ -6,8 +6,8 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 # Data Sources
 1. Walmart Sales Data
 
-Source: Walmart store sales records
-Period: 2020-2021
+- Source: Walmart store sales records
+- Period: 2020-2021
 Format: CSV
 Update Frequency: Weekly
 Key metrics: Weekly sales, store information, and economic indicators
