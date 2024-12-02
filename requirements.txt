@@ -1,0 +1,13 @@
+streamlit
+pandas
+numpy
+matplotlib
+seaborn
+plotly
+prophet
+statsmodels
+scikit-learn
+nltk
+textblob
+wordcloud
+datetime
