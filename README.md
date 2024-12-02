@@ -61,8 +61,8 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Multiple visualization options
 
 # Modeling Approach
-# 1. Sales Forecasting Models
-# Prophet Model
+### 1. Sales Forecasting Models
+### Prophet Model
 
 - Purpose: Long-term sales forecasting with seasonal decomposition
 - Implementation:
@@ -120,7 +120,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 
 
 
-# 2. Sentiment Analysis Model
+### 2. Sentiment Analysis Model
 # NLTK Sentiment Analyzer
 
 - Purpose: Customer review sentiment scoring
