@@ -73,7 +73,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Automatic changepoint detection
 
 
-Advantages:
+ ## Advantages:
 
 - Handles missing data effectively
 - Captures multiple seasonality patterns
