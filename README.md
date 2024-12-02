@@ -11,8 +11,8 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Format: CSV
 - Update Frequency: Weekly
 - Key metrics: Weekly sales, store information, and economic indicators
-- Link :
-
+- Link : https://www.kaggle.com/datasets/yasserh/walmart-dataset
+ 
 2. Amazon Sales Data FY2020-21
 
 - Source: Amazon sales records
@@ -20,7 +20,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Format: CSV
 - Update Frequency: Daily
 - Key metrics: Order details, product information, and pricing data
-- Link :
+- Link : https://www.kaggle.com/datasets/earthfromtop/amazon-sales-fy202021
 
 3. Amazon Customer Reviews
 
@@ -29,7 +29,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Format: CSV
 - Update Frequency: Daily
 - Key metrics: Review content, ratings, and customer sentiment
-- Link :
+- Link : https://www.kaggle.com/datasets/ahmedsayed564/amazon-sales-dataset
 
 # Features
 1. Sales Analysis
