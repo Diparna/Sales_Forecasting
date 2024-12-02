@@ -91,8 +91,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Seasonal order: (1,1,1,7) for weekly patterns
 - Rolling validation approach
 
-
-- ### Advantages:
+### Advantages:
 
 - Captures both trend and seasonality
 - Provides confidence intervals
@@ -110,8 +109,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Minimum samples split: 5
 - Minimum samples leaf: 2
 
-
-- ### Advantages:
+### Advantages:
 
 - Handles non-linear relationships
 - Feature importance ranking
@@ -130,8 +128,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Custom text preprocessing
 - Weighted sentence analysis
 
-
- - ### Advantages:
+### Advantages:
 
 - Specifically tuned for social media text
 - Handles emoji and punctuation
