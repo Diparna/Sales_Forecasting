@@ -137,7 +137,7 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 # Installation & Setup
 
 # Clone the repository
-git clone [your-repository-url]
+git clone 'https://github.com/Diparna/Sales_Forecasting/'
 
 # Install required packages
 pip install -r requirements.txt
