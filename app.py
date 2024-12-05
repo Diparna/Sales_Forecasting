@@ -2296,58 +2296,6 @@ def amazon_sentiment_app():
         
         return df_sentiment
 
-    def display_sentiment_analysis(df_sentiment):
-        """Create visualizations for sentiment analysis"""
-        st.header("Review Sentiment Analysis")
-        
-        # Overall sentiment distribution
-        st.subheader("Sentiment Distribution")
-        sentiment_counts = df_sentiment['sentiment_label'].value_counts()
-        fig = px.pie(
-            values=sentiment_counts.values,
-            names=sentiment_counts.index,
-            title="Distribution of Review Sentiments"
-        )
-        st.plotly_chart(fig)
-        
-        # Average sentiment by product category
-        st.subheader("Average Sentiment by Category")
-        category_sentiment = df_sentiment.groupby('main_category')['overall_sentiment'].mean().sort_values()
-        fig = px.bar(
-            x=category_sentiment.index,
-            y=category_sentiment.values,
-            title="Average Sentiment Score by Category"
-        )
-        st.plotly_chart(fig)
-        
-        # Sentiment vs Rating correlation
-        st.subheader("Sentiment vs Rating Correlation")
-        fig = px.scatter(
-            df_sentiment,
-            x='overall_sentiment',
-            y='rating',
-            title="Sentiment Score vs Product Rating",
-            trendline="ols"
-        )
-        st.plotly_chart(fig)
-        
-        # Example reviews by sentiment
-        st.subheader("Example Reviews by Sentiment")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("Most Positive Reviews")
-            positive_reviews = df_sentiment.nlargest(5, 'overall_sentiment')[
-                ['product_name', 'cleaned_title', 'cleaned_content', 'overall_sentiment']
-            ]
-            st.write(positive_reviews)
-        
-        with col2:
-            st.write("Most Negative Reviews")
-            negative_reviews = df_sentiment.nsmallest(5, 'overall_sentiment')[
-                ['product_name', 'cleaned_title', 'cleaned_content', 'overall_sentiment']
-            ]
-            st.write(negative_reviews)
 
     def add_sentiment_analysis_page(df):
             df_sentiment = analyze_review_sentiment(df)
@@ -2432,6 +2380,7 @@ def amazon_sentiment_app():
                     step=0.1,
                     help="Reviews with sentiment score below this value are considered negative"
                 )
+    
         # Add a separator
         st.markdown("---")
         
@@ -2510,6 +2459,20 @@ def amazon_sentiment_app():
             # Previous detailed analysis code remains the same
             st.subheader("Sentiment Score Distribution")
             
+            st.write("""
+            ### Understanding Sentiment Score Distribution
+
+            The histogram below shows the distribution of sentiment scores across all reviews. This distribution helps us 
+            understand the overall customer sentiment landscape and identify patterns in customer feedback.
+
+            **What Sentiment Scores Mean:**
+            - **Strong Positive (0.5 to 1.0)**: Very satisfied customers, enthusiastic praise
+            - **Moderate Positive (0.1 to 0.5)**: Generally satisfied customers
+            - **Neutral (-0.1 to 0.1)**: Mixed or neutral opinions
+            - **Moderate Negative (-0.5 to -0.1)**: Some dissatisfaction
+            - **Strong Negative (-1.0 to -0.5)**: Significant customer concerns
+            """)
+
             hist_data = np.histogram(category_data['overall_sentiment'], bins=30)
             max_height = max(hist_data[0])
             
@@ -2526,11 +2489,64 @@ def amazon_sentiment_app():
             fig_hist.add_vline(x=negative_threshold, line_dash="dash", line_color="red")
             
             st.plotly_chart(fig_hist, use_container_width=True)
-        
+
+            st.write("""
+            ### Key Insights from the Distribution:
+
+            **1. Distribution Shape:**
+            - **Peak Location**: Shows the most common sentiment score
+            - **Symmetry**: Indicates balance between positive and negative reviews
+            - **Spread**: Shows the range of customer opinions
+
+            **2. Threshold Analysis:**
+            - Green line: Positive sentiment threshold
+            - Red line: Negative sentiment threshold
+            - Reviews between lines considered neutral
+
+            **3. Pattern Interpretation:**
+            - **Single Peak**: Most customers share similar sentiments
+            - **Multiple Peaks**: Different customer segments with varying opinions
+            - **Long Tails**: Presence of extreme opinions
+
+            **4. Business Implications:**
+            - High positive skew: Strong customer satisfaction
+            - High negative skew: Areas needing improvement
+            - Wide spread: Inconsistent customer experience
+            """)
+
+
         with tab3:
             # Previous rating analysis code remains the same
             st.subheader("Sentiment vs Rating Analysis")
             
+            # Add explanation before the plot
+            st.write("""
+            ### Understanding Sentiment Score vs Product Rating
+
+            This analysis compares two different measures of customer satisfaction:
+
+            **Sentiment Score (-1 to 1)**:
+            - Analyzes the actual language and emotion in review text
+            - -1: Extremely negative sentiment
+            - 0: Neutral sentiment
+            - +1: Extremely positive sentiment
+
+            **Product Rating (1 to 5 stars)**:
+            - Traditional star rating given by customers
+            - 1: Lowest satisfaction
+            - 5: Highest satisfaction
+
+            ### What This Comparison Tells Us:
+            1. **Correlation Strength**: 
+            - A strong correlation indicates ratings consistently match review sentiments
+            - Weak correlation might reveal disconnects between ratings and written feedback
+
+            2. **Key Insights**:
+            - High rating + Low sentiment: Customer might be polite but expressing concerns
+            - Low rating + High sentiment: Could indicate specific issues despite overall satisfaction
+            - Matching trends: Validates customer feedback consistency
+            """)
+
             if 'rating' in category_data.columns:
                 fig_scatter = px.scatter(
                     category_data,
@@ -2547,14 +2563,42 @@ def amazon_sentiment_app():
                 
                 st.plotly_chart(fig_scatter, use_container_width=True)
                 
+                # Add interpretation after the plot
+                st.write("""
+                ### How to Interpret the Plot:
+
+                **Trend Line**:
+                - Upward slope: Positive correlation between ratings and sentiment
+                - Steeper slope: Stronger relationship
+                - Flatter slope: Weaker relationship
+
+                **Data Points**:
+                - Clustered points: Common rating-sentiment combinations
+                - Outliers: Reviews requiring attention
+                - Colors: Different sentiment categories
+
+                **Business Applications**:
+                - Identify reviews where rating and sentiment don't match
+                - Find products with consistent feedback patterns
+                - Spot potential rating system biases
+                """)
+
                 col1, col2 = st.columns(2)
                 with col1:
                     correlation = category_data['rating'].corr(category_data['overall_sentiment'])
-                    st.metric("Correlation: Rating vs Sentiment", f"{correlation:.2f}")
+                    st.metric(
+                    "Correlation Coefficient", 
+                    f"{correlation:.2f}",
+                    help="1.0 indicates perfect positive correlation, -1.0 perfect negative correlation, 0 no correlation"
+                )
                 
                 with col2:
                     avg_sentiment = category_data['overall_sentiment'].mean()
-                    st.metric("Average Sentiment Score", f"{avg_sentiment:.2f}")
+                    st.metric(
+                    "Average Sentiment Score", 
+                    f"{avg_sentiment:.2f}",
+                    help="Average sentiment across all reviews (-1 to +1)"
+                )
         
         with tab4:
             st.subheader("Word Clouds by Sentiment")
@@ -2598,7 +2642,8 @@ def amazon_sentiment_app():
         'Pricing Analysis',
         'Rating Analysis',
         'Review Analysis',
-        'Sentiment Analysis'])
+        #'Sentiment Analysis',
+        'Product Recommendations'])
 
     if page == 'Initial Data Assessment':
         st.header('Initial Data Assessment')
@@ -2967,10 +3012,118 @@ def amazon_sentiment_app():
 
         
 
-    elif page == 'Sentiment Analysis':
-        df_sentiment = add_sentiment_analysis_page(df)
-        create_sentiment_visualization(df_sentiment)
-        #display_sentiment_analysis(df_sentiment)
+    #elif page == 'Sentiment Analysis':
+        #df_sentiment = add_sentiment_analysis_page(df)
+        #create_sentiment_visualization(df_sentiment)
+    
+    elif page == "Product Recommendations":
+        st.header('Category-Based Recommendations')
+        
+        final_df, df_transformed = transform_data(df)
+    
+        # Category selection
+        main_categories = sorted(df_transformed['main_category'].unique())
+        selected_main_cat = st.selectbox(
+            'Select Main Category:',
+            options=main_categories
+        )
+        
+        # Filter sub-categories based on main category
+        sub_categories = sorted(df_transformed[
+            df_transformed['main_category'] == selected_main_cat
+        ]['sub_category'].unique())
+        selected_sub_cat = st.selectbox(
+            'Select Sub-Category:',
+            options=sub_categories
+        )
+        
+        # Filter data for selected categories
+        filtered_data = df_transformed[
+            (df_transformed['main_category'] == selected_main_cat) & 
+            (df_transformed['sub_category'] == selected_sub_cat)
+        ]
+            
+        # Calculate metrics
+        df_sentiment = analyze_review_sentiment(filtered_data)
+        avg_sentiment = df_sentiment['overall_sentiment'].mean()
+        avg_rating = df_sentiment['rating'].mean()
+        positive_pct = (df_sentiment['sentiment_label'] == 'Positive').mean() * 100
+        negative_pct = (df_sentiment['sentiment_label'] == 'Negative').mean() * 100
+        
+        # Display metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Average Sentiment", f"{avg_sentiment:.2f}")
+        with col2:
+            st.metric("Average Rating", f"{avg_rating:.1f}⭐")
+        with col3:
+            st.metric("Positive Reviews", f"{positive_pct:.1f}%")
+        with col4:
+            st.metric("Negative Reviews", f"{negative_pct:.1f}%")
+        
+        # Generate recommendations
+        st.subheader("Recommendations")
+        
+        # Overall sentiment status
+        if avg_sentiment >= 0.5:
+            st.success("""
+            ### Strong Category Performance 📈
+            
+            **Key Strengths:**
+            - High customer satisfaction
+            - Strong positive sentiment
+            - Reliable product performance
+            
+            **Recommended Actions:**
+            1. Maintain current product quality standards
+            2. Consider expanding product range
+            3. Highlight positive customer experiences in marketing
+            4. Monitor for consistent performance
+            """)
+        elif avg_sentiment <= -0.1:
+            st.error("""
+            ### Areas Needing Attention ⚠️
+            
+            **Key Concerns:**
+            - Lower customer satisfaction
+            - Presence of negative sentiment
+            - Potential product issues
+            
+            **Recommended Actions:**
+            1. Review common customer complaints
+            2. Implement immediate improvement measures
+            3. Enhance customer support
+            4. Follow up with dissatisfied customers
+            """)
+        else:
+            st.info("""
+            ### Mixed Performance 📊
+            
+            **Current Status:**
+            - Moderate customer satisfaction
+            - Mixed customer feedback
+            - Room for improvement
+            
+            **Recommended Actions:**
+            1. Address specific customer concerns
+            2. Enhance product features
+            3. Improve customer communication
+            4. Monitor customer feedback closely
+            """)
+        
+        # Show top reviews
+        st.subheader("Review Highlights")
+        st.write("**Most Positive Reviews:**")
+        top_positive = df_sentiment[
+            df_sentiment['sentiment_label'] == 'Positive'
+        ].nlargest(10, 'overall_sentiment')[['product_name','cleaned_title','rating' , 'overall_sentiment']]
+        st.dataframe(top_positive)
+    
+        st.write("**Most Critical Reviews:**")
+        top_negative = df_sentiment[
+            df_sentiment['sentiment_label'] == 'Negative'
+        ].nsmallest(10, 'overall_sentiment')[['product_name','cleaned_title','rating' ,'overall_sentiment']]
+        st.dataframe(top_negative)
 
 if __name__ == "__main__":
     main()
