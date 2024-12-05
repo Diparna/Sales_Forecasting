@@ -380,18 +380,7 @@ def walmart_app():
             'Residual': model.resid
         })
         
-        # Residuals over time
-        residuals_time = px.line(
-            residuals_df,
-            x='Date', 
-            y='Residual',
-            title='Residuals Over Time'
-        )
-        residuals_time.update_layout(
-            xaxis_title='Date',
-            yaxis_title='Residual Value'
-        )
-        
+                
         # Residual distribution
         residuals_dist = px.histogram(
             residuals_df,
@@ -404,7 +393,7 @@ def walmart_app():
             yaxis_title='Count'
         )
         
-        return residuals_time, residuals_dist
+        return residuals_dist
 
     def arima_forecasting_page():
         st.header('Walmart ARIMA Sales Forecasting')
@@ -453,18 +442,13 @@ def walmart_app():
                 
                 # Plot residuals analysis using separate plots
                 st.subheader('Residuals Analysis')
-                residuals_time, residuals_dist = plot_residuals(model)
+                residuals_dist = plot_residuals(model)
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.plotly_chart(residuals_time, use_container_width=True)
-                with col2:
-                    st.plotly_chart(residuals_dist, use_container_width=True)
+                st.plotly_chart(residuals_dist, use_container_width=True)
                 
                 # Add interpretation of residuals
                 st.write("""
                 **Interpreting the Residuals:**
-                - The residuals over time plot helps us check if there are any patterns left uncaptured by the model
                 - The residual distribution should ideally be centered around zero and roughly normal
                 """)
                 
@@ -478,11 +462,11 @@ def walmart_app():
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.write('MAE', f"${mae:,.2f}")
+                    st.metric('MAE', f"${mae/1000000:,.2f}M")
                 with col2:
-                    st.write('MSE', f"${mse:,.2f}")
+                    st.metric('MSE', f"${mse/1000000:,.2f}M")
                 with col3:
-                    st.write('RMSE', f"${rmse:,.2f}")
+                    st.metric('RMSE', f"${rmse/1000000:,.2f}M")
                 
                 # Download forecast
                 forecast_df = pd.DataFrame({
@@ -614,11 +598,11 @@ def walmart_app():
                 # Display metrics
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.write('MAE', f"${mae:,.2f}")
+                    st.write('MAE', f"${mae/1000000:,.2f}M")
                 with col2:
-                    st.write('MSE', f"${mse:,.2f}")
+                    st.write('MSE', f"${mse/1000000:,.2f}M")
                 with col3:
-                    st.write('RMSE', f"${rmse:,.2f}")
+                    st.write('RMSE', f"${rmse/1000000:,.2f}M")
                 with col4:
                     st.write('MAPE', f"{mape:.2f}%")
                 
@@ -804,8 +788,8 @@ def walmart_app():
         'Feature Distribution', 
         'Correlation Analysis',
         'Seasonal Sales Analysis',
-        'ARIMA Forecasting',
-        'SARIMA Forecasting',
+        'ARIMA Forecasting'
+       # 'SARIMA Forecasting',
         ])
         
     if page == 'Original Dataset Overview':
@@ -971,21 +955,58 @@ def walmart_app():
         
         # Display the plot
         st.plotly_chart(fig_seasonal, use_container_width=True)
-    
-        # Top 5 Stores Analysis
-        st.subheader('Top 5 Stores by Sales')
-        top_stores = df.groupby('Store')['Weekly_Sales'].sum().reset_index()
-        top_5_stores = top_stores.nlargest(5, 'Weekly_Sales')
-
-        # Display actual numbers
-        st.write("Sales breakdown for top performing stores:")
-        for idx, row in top_5_stores.iterrows():
-            sales_value = row['Weekly_Sales']  # Get the specific sales value
-            st.write(f"Store {int(row['Store'])}: ${sales_value:,.2f}")
-        
+         
         # Get top 5 stores for selected season
         top_5_seasonal = seasonal_data.groupby('Store')['Weekly_Sales'].sum().reset_index()
         top_5_seasonal = top_5_seasonal.nlargest(5, 'Weekly_Sales')
+
+        # Display detailed breakdown of top 5 stores
+        st.subheader(f'Top 5 Performing Stores in {selected_season}')
+    
+        # Calculate average weekly sales for more meaningful comparison
+        store_metrics = pd.DataFrame({
+            'Store': top_5_seasonal['Store'],
+            'Total Sales': top_5_seasonal['Weekly_Sales'],
+            'Average Weekly Sales': top_5_seasonal['Weekly_Sales'] / seasonal_data.groupby('Store').size()[top_5_seasonal['Store']].values
+        })
+        
+         # Create three columns for each store's metrics
+        cols = st.columns(5)
+        for idx, (_, store_data) in enumerate(store_metrics.iterrows()):
+            with cols[idx]:
+                # Format total sales in millions
+                total_sales_m = store_data['Total Sales'] / 1_000_000
+                # Format weekly sales in thousands
+                weekly_sales_k = store_data['Average Weekly Sales'] / 1_000
+                
+                st.metric(
+                    f"Store {int(store_data['Store'])}",
+                    f"${total_sales_m:.2f}M",
+                    f"${weekly_sales_k:.1f}K/week"
+                )
+        # Additional insights
+        st.subheader('Seasonal Performance Insights')
+        
+        # Calculate and display season-specific metrics
+        avg_seasonal_sales = seasonal_data['Weekly_Sales'].mean()
+        max_seasonal_sales = seasonal_data['Weekly_Sales'].max()
+        total_seasonal_sales = seasonal_data['Weekly_Sales'].sum()
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Average Weekly Sales", f"${avg_seasonal_sales:,.2f}")
+        with col2:
+            st.metric("Maximum Weekly Sales", f"${max_seasonal_sales:,.2f}")
+        with col3:
+            st.metric("Total Seasonal Sales", f"${total_seasonal_sales:,.2f}")
+
+        # Season-specific insights
+        st.write(f"""
+        **Key Observations for {selected_season}:**
+        - The top performing store generated ${top_5_seasonal['Weekly_Sales'].max():,.2f} in total sales
+        - The average sales among top 5 stores was ${top_5_seasonal['Weekly_Sales'].mean():,.2f}
+        - The difference between the highest and lowest performing stores among the top 5 is ${(top_5_seasonal['Weekly_Sales'].max() - top_5_seasonal['Weekly_Sales'].min()):,.2f}
+        """)
         
         
     elif page == 'Correlation Analysis':
@@ -1050,18 +1071,18 @@ def walmart_app():
         """)
         arima_forecasting_page()
 
-    elif page == 'SARIMA Forecasting':  
-        st.info("""
-        Use SARIMA (Seasonal ARIMA) models to capture both trend and seasonal patterns in the sales data. Ideal for data with strong seasonal components.
-        
-        Key Features:
-        • Seasonal component modeling
-        • Advanced parameter configuration
-        • Multiple performance metrics
-        • Animated forecast visualization
-        • Detailed model diagnostics
-        """)
-        sarima_forecasting_page()
+    #elif page == 'SARIMA Forecasting':  
+    #    st.info("""
+    #    Use SARIMA (Seasonal ARIMA) models to capture both trend and seasonal patterns in the sales data. Ideal for data with strong seasonal components.
+    #    
+    #    Key Features:
+    #    • Seasonal component modeling
+    #    • Advanced parameter configuration
+    #    • Multiple performance metrics
+    #   • Animated forecast visualization
+    #    • Detailed model diagnostics
+    #    """)
+    #    sarima_forecasting_page()
 
     elif page == 'Store Timeline':
         st.info("""
@@ -1386,38 +1407,6 @@ def amazon_sales_app():
         fig.update_layout(height=900, title_text="Time Series Decomposition")
         return fig, decomposition
 
-        #def train_sarima_model(daily_sales, test_size=30):
-        #   """Train SARIMA model"""
-            # Split data into train and test
-        #  train = daily_sales[:-test_size]
-        # test = daily_sales[-test_size:]
-            
-            # Fit SARIMA model
-            # Order (1,1,1) for trend
-            # Seasonal order (1,1,1,7) for weekly seasonality
-            #model = SARIMAX(train['total'],
-            #                order=(1, 1, 1),
-            #                seasonal_order=(1, 1, 1, 7))
-            
-        # results = model.fit(disp=False)
-            
-            # Make predictions
-            #forecast = results.get_forecast(steps=test_size)
-            #forecast_mean = forecast.predicted_mean
-        # forecast_ci = forecast.conf_int()
-            
-            # Calculate metrics
-        # mse = ((test['total'] - forecast_mean) ** 2).mean()
-        # rmse = np.sqrt(mse)
-        # mae = np.abs(test['total'] - forecast_mean).mean()
-            
-            #metrics = {
-            #   'RMSE': rmse,
-            #   'MAE': mae,
-            #   'MSE': mse
-            #}
-            
-            #return results, forecast_mean, forecast_ci, test, metrics
 
     def train_sarima_model(daily_sales, test_size=30):
         """Train SARIMA model with flexible forecast period"""
@@ -1519,12 +1508,13 @@ def amazon_sales_app():
     # Sidebar navigation
     st.sidebar.title('Navigation')
     page = st.sidebar.selectbox('Choose a page', 
-        ['IDA',
+        ['Sales Prediction',
+        'IDA',
         'Order Analysis', 
         'Product Performance',
         'Financial Analysis',
-        'Regional Analysis',
-        'Sales Prediction'])
+        'Regional Analysis'
+        ])
 
     if page == 'IDA':
 
@@ -2444,14 +2434,15 @@ def amazon_sentiment_app():
     # Sidebar navigation
     st.sidebar.title('Navigation')
     page = st.sidebar.selectbox('Choose a page', 
-        ['Initial Data Assessment',
+        ['Product Recommendations',
+        'Initial Data Assessment',
         'Data Transformation', 
         'Product Overview',
         'Pricing Analysis',
         'Rating Analysis',
         'Review Analysis',
-        'Sentiment Analysis',
-        'Product Recommendations'])
+        'Sentiment Analysis'
+        ])
 
     if page == 'Initial Data Assessment':
         st.header('Initial Data Assessment')
