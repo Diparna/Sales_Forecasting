@@ -947,18 +947,67 @@ def walmart_app():
         • Identify outliers and unusual patterns
         """)
         st.write("This page explores the distribution of the features throughout the dataset. We can see various stats of the data below the graph:")
+        relevant_features = [
+            'Weekly_Sales',
+            'Temperature',
+            'Fuel_Price',
+            'CPI',
+            'Unemployment'
+        ]
         # Select column for distribution
-        column = st.selectbox('Select a column to visualize', df_engineered.select_dtypes(include=['float64', 'int64']).columns)
+        feature_labels = {
+            'Weekly_Sales': 'Weekly Sales ($)',
+            'Temperature': 'Temperature (°F)',
+            'Fuel_Price': 'Fuel Price ($/gallon)',
+            'CPI': 'Consumer Price Index',
+            'Unemployment': 'Unemployment Rate (%)'
+        }
+        column = st.selectbox(
+            'Select a metric to visualize:', 
+            options=relevant_features,
+            format_func=lambda x: feature_labels[x]
+        )
+        
             
         # Distribution plot
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.histplot(df_engineered[column], kde=True, ax=ax)
-        plt.title(f'Distribution of {column}')
+        plt.title(f'Distribution of {feature_labels[column]}')
+        plt.xlabel(feature_labels[column])
+        plt.ylabel('Count')
         st.pyplot(fig)
-            
-        # Basic statistics for the selected column
-        st.write(df_engineered[column].describe())
-
+        
+        # Basic statistics for the selected column with formatted output
+        st.subheader(f'Summary Statistics for {feature_labels[column]}')
+        stats = df_engineered[column].describe()
+        
+        # Format statistics based on the feature type
+        if column == 'Weekly_Sales':
+            stats_df = pd.DataFrame({
+                'Statistic': ['Count', 'Mean', 'Std Dev', 'Min', '25%', 'Median', '75%', 'Max'],
+                'Value': [f"{stats['count']:,.0f}",
+                        f"${stats['mean']:,.2f}",
+                        f"${stats['std']:,.2f}",
+                        f"${stats['min']:,.2f}",
+                        f"${stats['25%']:,.2f}",
+                        f"${stats['50%']:,.2f}",
+                        f"${stats['75%']:,.2f}",
+                        f"${stats['max']:,.2f}"]
+            })
+        else:
+            stats_df = pd.DataFrame({
+                'Statistic': ['Count', 'Mean', 'Std Dev', 'Min', '25%', 'Median', '75%', 'Max'],
+                'Value': [f"{stats['count']:,.0f}",
+                        f"{stats['mean']:.2f}",
+                        f"{stats['std']:.2f}",
+                        f"{stats['min']:.2f}",
+                        f"{stats['25%']:.2f}",
+                        f"{stats['50%']:.2f}",
+                        f"{stats['75%']:.2f}",
+                        f"{stats['max']:.2f}"]
+            })
+        
+        st.table(stats_df)
 
     # In the Seasonal Sales Analysis section:
     elif page == 'Seasonal Sales Analysis':
