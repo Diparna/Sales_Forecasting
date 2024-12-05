@@ -3016,9 +3016,6 @@ def amazon_sentiment_app():
         with col4:
             st.metric("Negative Reviews", f"{negative_pct:.1f}%")
         
-        # Generate recommendations
-        st.subheader("Recommendations")
-        
         # Overall sentiment status
         if avg_sentiment >= 0.5:
             st.success("""
@@ -3079,6 +3076,9 @@ def amazon_sentiment_app():
             df_sentiment['sentiment_label'] == 'Negative'
         ].nsmallest(10, 'overall_sentiment')[['product_name','cleaned_title','rating' ,'overall_sentiment']]
         st.dataframe(top_negative)
+
+# Generate recommendations
+        st.subheader("Recommendations")
 
 if __name__ == "__main__":
     main()
