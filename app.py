@@ -832,6 +832,7 @@ def walmart_app():
         ])
         
     if page == 'Original Dataset Overview':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Original Dataset Overview')
         st.write("""
         This section presents the raw dataset and its basic characteristics. We can observe the
@@ -900,6 +901,7 @@ def walmart_app():
             st.write(f"Store {store}: ${sales:,.2f}")
 
     elif page == 'Engineered Features Overview':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Engineered Features Overview')
         st.write("""
         This section showcases the additional features we've created to enhance our analysis.
@@ -937,6 +939,7 @@ def walmart_app():
                 st.write("Log-transformed weekly sales for better distribution")
         
     elif page == 'Feature Distribution':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Feature Distribution')
         st.info("""
         Key Features:
@@ -1011,6 +1014,7 @@ def walmart_app():
 
     # In the Seasonal Sales Analysis section:
     elif page == 'Seasonal Sales Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Seasonal Sales Analysis')
         st.write("""
         Analyze store sales performance across different seasons. Select a season to see how different stores perform during that time period.
@@ -1098,6 +1102,7 @@ def walmart_app():
         
         
     elif page == 'Correlation Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Correlation Analysis')
         
         # Select numeric columns for correlation
@@ -1133,6 +1138,7 @@ def walmart_app():
         """)
 
     elif page == 'Sales Forecasting':
+        st.write(":green[This page is relevant for the users!]")
         st.info("""
         Use Facebook's Prophet model to forecast future sales trends. This advanced forecasting tool accounts for multiple seasonal patterns and trends.
         
@@ -1145,6 +1151,7 @@ def walmart_app():
         """)
         sales_forecasting_page()
     elif page == 'Summary':
+            st.write(":red[This page is relevant for the engineers!]")
             st.subheader("Forecasting Models Comparison")
             
             st.write("""
@@ -1292,6 +1299,7 @@ def walmart_app():
 
 
     elif page == 'ARIMA Forecasting':
+        st.write(":red[This page is relevant for the engineers!]")
         st.info("""
         Implement ARIMA (AutoRegressive Integrated Moving Average) models for time series forecasting. Perfect for capturing linear time series patterns.
         
@@ -1318,6 +1326,7 @@ def walmart_app():
     #    sarima_forecasting_page()
 
     elif page == 'Store Timeline':
+        st.write(":green[This page is relevant for the users!]")
         st.info("""
         Visualize the evolution of store sales over time with an interactive animated timeline. Track performance changes and identify trends.
         
@@ -1750,7 +1759,7 @@ def amazon_sales_app():
         ])
 
     if page == 'IDA':
-
+        st.write(":red[This page is relevant for the engineers!]")
         st.markdown("""
             This page provides a comprehensive overview of the Amazon sales dataset, analyzing data quality, 
             patterns, and basic statistics. The analysis helps understand the data's structure and identify 
@@ -1827,6 +1836,7 @@ def amazon_sales_app():
         st.write(df.head())
 
     elif page == 'Order Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Order Analysis')
         
         st.markdown("""
@@ -1874,6 +1884,7 @@ def amazon_sales_app():
         
 
     elif page == 'Product Performance':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Product Performance')
         
         st.markdown("""
@@ -1922,6 +1933,7 @@ def amazon_sales_app():
         st.plotly_chart(fig, use_container_width=True)
 
     elif page == 'Financial Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Financial Analysis')
         
         st.markdown("""
@@ -1960,6 +1972,7 @@ def amazon_sales_app():
         
 
     elif page == 'Regional Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Regional Analysis')
 
         st.markdown("""
@@ -2008,6 +2021,7 @@ def amazon_sales_app():
         st.plotly_chart(fig, use_container_width=True)
 
     elif page == 'Sales Prediction':
+        st.write(":green[This page is relevant for the users!]")
         st.header('Sales Prediction Analysis')
 
         st.markdown("""
@@ -2677,6 +2691,7 @@ def amazon_sentiment_app():
         ])
 
     if page == 'Initial Data Assessment':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Initial Data Assessment')
         
         # Perform IDA
@@ -2709,6 +2724,7 @@ def amazon_sentiment_app():
         st.write(df.head())
 
     elif page == 'Data Transformation':
+        st.write(":red[This page is relevant for the engineers!]")
         st.header('Data Transformation Steps')
         
         st.write("""
@@ -2771,6 +2787,7 @@ def amazon_sentiment_app():
             st.metric("Columns Removed", len(df.columns) - len(final_df.columns))
 
     elif page == 'Product Overview':
+        st.write(":red[This page is relevant for the engineers!]")
         final_df, _ = transform_data(df)
         st.header('Product Overview')
         
@@ -2851,6 +2868,7 @@ def amazon_sentiment_app():
         st.write(top_products)
 
     elif page == 'Pricing Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         final_df, _ = transform_data(df)
         st.header('Pricing Analysis')
 
@@ -2927,6 +2945,7 @@ def amazon_sentiment_app():
         st.plotly_chart(fig, use_container_width=True)
 
     elif page == 'Rating Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         # Get transformed data
         try:
             final_df, _ = transform_data(df)
@@ -3018,10 +3037,12 @@ def amazon_sentiment_app():
 
 
     elif page == 'Sentiment Analysis':
+        st.write(":red[This page is relevant for the engineers!]")
         df_sentiment = add_sentiment_analysis_page(df)
         create_sentiment_visualization(df_sentiment)
     
     elif page == "Product Recommendations":
+        st.write(":green[This page is relevant for the users!]")
         st.header('Category-Based Recommendations')
         st.write("According to the selected category, this page will show you recommendations! Our dataset is limited so there might be very few products in some categories. We apologize for the incovenience! The data keeps getting updated!")
         final_df, df_transformed = transform_data(df)
