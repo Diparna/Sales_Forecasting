@@ -2974,7 +2974,7 @@ def amazon_sentiment_app():
     
     elif page == "Product Recommendations":
         st.header('Category-Based Recommendations')
-        
+        st.write("According to the selected category, this page will show you recommendations! Our dataset is limited so there might be very few products in some categories. We apologize for the incovenience! The data keeps getting updated!")
         final_df, df_transformed = transform_data(df)
     
         # Category selection
