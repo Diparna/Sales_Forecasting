@@ -57,7 +57,7 @@ def main():
     """
     <div style='position: fixed; bottom: 0; left: 0; padding: 1rem; background-color: #0E1117; width: 17rem;'>
         <h2 style='font-size: 1.25rem; margin-bottom: 0.5rem;'>GitHub Repository 🤖</h2>
-        <a href='your_github_url' target='_blank' style='color: #4B9DFF; text-decoration: none;'>
+        <a href='https://github.com/Diparna/Sales_Forecasting' target='_blank' style='color: #4B9DFF; text-decoration: none;'>
             View the source code on GitHub 💻
         </a>
         <p style='margin-top: 0.5rem; font-size: 0.875rem;'>Made by Diparna Adhikary for educational purpose! 📖</p>
