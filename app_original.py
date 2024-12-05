@@ -22,7 +22,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from statsmodels.tsa.seasonal import seasonal_decompose
 from plotly.subplots import make_subplots
+import nltk
 
+nltk.download('vader_lexicon')
 
 
 st.set_page_config(
