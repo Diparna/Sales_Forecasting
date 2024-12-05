@@ -3015,7 +3015,23 @@ def amazon_sentiment_app():
             st.metric("Positive Reviews", f"{positive_pct:.1f}%")
         with col4:
             st.metric("Negative Reviews", f"{negative_pct:.1f}%")
-        
+                
+        # Show top reviews
+        st.subheader("Review Highlights")
+        st.write("**Most Positive Reviews:**")
+        top_positive = df_sentiment[
+            df_sentiment['sentiment_label'] == 'Positive'
+        ].nlargest(10, 'overall_sentiment')[['product_name','cleaned_title','rating' , 'overall_sentiment']]
+        st.dataframe(top_positive)
+    
+        st.write("**Most Critical Reviews:**")
+        top_negative = df_sentiment[
+            df_sentiment['sentiment_label'] == 'Negative'
+        ].nsmallest(10, 'overall_sentiment')[['product_name','cleaned_title','rating' ,'overall_sentiment']]
+        st.dataframe(top_negative)
+
+# Generate recommendations
+        st.subheader("Recommendations")
         # Overall sentiment status
         if avg_sentiment >= 0.5:
             st.success("""
@@ -3062,23 +3078,7 @@ def amazon_sentiment_app():
             3. Improve customer communication
             4. Monitor customer feedback closely
             """)
-        
-        # Show top reviews
-        st.subheader("Review Highlights")
-        st.write("**Most Positive Reviews:**")
-        top_positive = df_sentiment[
-            df_sentiment['sentiment_label'] == 'Positive'
-        ].nlargest(10, 'overall_sentiment')[['product_name','cleaned_title','rating' , 'overall_sentiment']]
-        st.dataframe(top_positive)
-    
-        st.write("**Most Critical Reviews:**")
-        top_negative = df_sentiment[
-            df_sentiment['sentiment_label'] == 'Negative'
-        ].nsmallest(10, 'overall_sentiment')[['product_name','cleaned_title','rating' ,'overall_sentiment']]
-        st.dataframe(top_negative)
 
-# Generate recommendations
-        st.subheader("Recommendations")
 
 if __name__ == "__main__":
     main()
