@@ -22,7 +22,10 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from statsmodels.tsa.seasonal import seasonal_decompose
 from plotly.subplots import make_subplots
+import nltk
 
+nltk.download('vader_lexicon')
+nltk.download('punkt_tab')
 
 st.set_page_config(
     page_title="Retail Analytics Suite",
@@ -39,7 +42,7 @@ def main():
         "Choose Analysis",
         ["Home", "Walmart Sales Analysis", "Amazon Sales Prediction", "Amazon Sentiment Analysis"]
     )
-
+    
     if app_selection == "Home":
         show_home()
     elif app_selection == "Walmart Sales Analysis":
@@ -49,7 +52,7 @@ def main():
     else:
         amazon_sentiment_app()
 
-     # Add a vertical spacer
+    # Add a vertical spacer
     st.sidebar.markdown('<div style="flex-grow: 1;"></div>', unsafe_allow_html=True)
     
     # Create a fixed container at the bottom of the sidebar
@@ -75,19 +78,16 @@ def show_home():
     This comprehensive suite combines three powerful analysis tools:
     
     ### 1. Walmart Sales Analysis 🏪
-    - Analyze historical sales data
-    - View seasonal trends and patterns
-    - Access multiple forecasting models
+    - For Users, Please go to 'Store Timeline' and 'Sales Forecasting'
+    - To see what's going on under the hood, Please use any of the other pages!
     
     ### 2. Amazon Sales Prediction 📈
-    - Predict future sales patterns
-    - Analyze pricing strategies
-    - Explore regional distribution
+    - For Users, Please go to 'Sales Prediction'
+    - To see what's going on under the hood, Please use any of the other pages!
     
     ### 3. Amazon Sentiment Analysis 💭
-    - Analyze customer reviews
-    - Track sentiment patterns
-    - Understand customer satisfaction
+    - For Users, Please go to 'Product Recommendations'
+    - To see what's going on under the hood, Please use any of the other pages!
     
     Use the radio buttons in the sidebar to navigate between different analyses.
     """)
@@ -121,8 +121,7 @@ def walmart_app():
         # Rename columns to Prophet requirements
         prophet_df = daily_sales.rename(columns={'Date': 'ds', 'Weekly_Sales': 'y'})
         return prophet_df
-    
-    @st.cache_resource
+
     def train_prophet_model(df, seasonality_mode='multiplicative'):
         """Train Prophet model with specified parameters"""
         # Initialize model
@@ -134,7 +133,6 @@ def walmart_app():
             changepoint_prior_scale=0.05
         )
         
-
         # Add additional seasonality if needed
         model.add_country_holidays(country_name='US')
 
@@ -235,6 +233,105 @@ def walmart_app():
             'RMSE': rmse
         }
 
+    def sales_forecasting_page():
+        st.header('Walmart Sales Forecasting')
+        
+        # Load data
+        @st.cache_data
+        def load_data():
+            url = "https://raw.githubusercontent.com/Diparna/Sales_Forecasting/refs/heads/main/Walmart_Sales_Data.csv"
+            df = pd.read_csv(url)
+            df['Date'] = df['Date'].apply(parse_mixed_dates)
+            return df
+        
+        df = load_data()
+        
+        # Data preparation
+        prophet_df = prepare_data_for_prophet(df)
+        
+        # Add detailed descriptions for seasonality modes
+        seasonality_help = """
+        Choose how seasonal components combine with the trend:
+        
+        • Multiplicative: Use when the seasonal variations increase with the trend
+            - Best for data where seasonal fluctuations grow larger as the trend increases
+            - Example: If summer sales are typically 20% higher than average, they'll be 
+            proportionally higher when overall sales are higher
+            - Good for retail data where seasonal spikes grow with overall business growth
+        
+        • Additive: Use when the seasonal variations are consistent regardless of the trend
+            - Best for data where seasonal fluctuations remain relatively constant
+            - Example: If summer typically adds $1M to sales, it will add the same amount 
+            regardless of the overall trend
+            - Better for data where seasonal effects are more stable over time
+        """
+
+        # Model parameters
+        st.subheader('Model Configuration')
+        seasonality_mode = st.selectbox(
+            'Seasonality Mode',
+            options=['multiplicative', 'additive'],
+            help=seasonality_help
+        )
+        
+        forecast_periods = st.slider(
+            'Forecast Periods (weeks)',
+            min_value=4,
+            max_value=52,
+            value=12,
+            help='Number of weeks to forecast into the future'
+        )
+        
+        # Train model
+        with st.spinner('Training forecasting model...'):
+            model = train_prophet_model(prophet_df, seasonality_mode)
+            forecast = make_future_predictions(model, periods=forecast_periods)
+        
+        # Display forecast plot
+        st.subheader('Sales Forecast')
+        forecast_plot = plot_forecast(prophet_df, forecast)
+        st.plotly_chart(forecast_plot, use_container_width=True)
+        
+        # Model components
+        st.subheader('Forecast Components')
+        trend_fig, weekly_fig = plot_components(model, forecast)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.plotly_chart(trend_fig, use_container_width=True)
+        with col2:
+            if weekly_fig:
+                st.plotly_chart(weekly_fig, use_container_width=True)
+            else:
+                st.write("Weekly seasonality pattern not available")
+
+        # Model evaluation
+        st.subheader('Model Performance')
+        metrics = evaluate_forecast(model, prophet_df)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric('Mean Absolute Error', f"${metrics['MAE']/1000000:,.2f}M")
+        with col2:
+            st.metric('Mean Squared Error', f"${metrics['MSE']/1000000:,.2f}M")
+        with col3:
+            st.metric('Root Mean Squared Error', f"${metrics['RMSE']/1000000:,.2f}M")
+        
+        # Download forecast
+        st.subheader('Download Forecast')
+        forecast_download = pd.DataFrame({
+            'Date': forecast['ds'],
+            'Predicted_Sales': forecast['yhat'],
+            'Lower_Bound': forecast['yhat_lower'],
+            'Upper_Bound': forecast['yhat_upper']
+        })
+        
+        st.download_button(
+            label="Download Forecast CSV",
+            data=forecast_download.to_csv(index=False),
+            file_name="walmart_sales_forecast.csv",
+            mime="text/csv"
+        )
 
     def feature_engineering(df):
         df_engineered = df.copy()
@@ -271,7 +368,6 @@ def walmart_app():
         daily_sales.set_index('Date', inplace=True)
         return daily_sales
 
-    @st.cache_resource
     def train_arima_model(data, ar_order=1):
         """Train SARIMA model with specified parameters"""
         model = SARIMAX(
@@ -322,18 +418,7 @@ def walmart_app():
             'Residual': model.resid
         })
         
-        # Residuals over time
-        residuals_time = px.line(
-            residuals_df,
-            x='Date', 
-            y='Residual',
-            title='Residuals Over Time'
-        )
-        residuals_time.update_layout(
-            xaxis_title='Date',
-            yaxis_title='Residual Value'
-        )
-        
+                
         # Residual distribution
         residuals_dist = px.histogram(
             residuals_df,
@@ -346,9 +431,98 @@ def walmart_app():
             yaxis_title='Count'
         )
         
-        return residuals_time, residuals_dist
+        return residuals_dist
 
-    @st.cache_resource
+    def arima_forecasting_page():
+        st.header('Walmart ARIMA Sales Forecasting')
+        
+        # Load and prepare data
+        df = load_data()
+        sales_data = prepare_data_for_arima(df)
+        
+        # Simplified model parameters
+        st.subheader('Model Configuration')
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            ar_order = st.number_input('AR Order (p)', min_value=1, max_value=5, value=1,
+                                    help='Order of the AutoRegressive component')
+        
+        with col2:
+            forecast_steps = st.number_input('Forecast Steps (weeks)', 
+                                        min_value=1, max_value=52, value=12,
+                                        help='Number of weeks to forecast')
+        
+        # Train model
+        with st.spinner('Training ARIMA model...'):
+            try:
+                model = train_arima_model(sales_data['Weekly_Sales'], ar_order=ar_order)
+                
+                # Generate forecast
+                forecast = model.get_forecast(steps=forecast_steps)
+                forecast_mean = forecast.predicted_mean
+                
+                # Create forecast dates
+                last_date = sales_data.index[-1]
+                forecast_dates = pd.date_range(start=last_date, periods=forecast_steps+1, freq='W')[1:]
+                
+                # Plot forecast
+                st.subheader('Sales Forecast')
+                forecast_fig = plot_arima_forecast(sales_data, forecast_mean, forecast_dates)
+                st.plotly_chart(forecast_fig, use_container_width=True)
+                
+                # Model diagnostics
+                st.subheader('Model Diagnostics')
+                
+                # Show model summary in expander
+                with st.expander("View Model Summary"):
+                    st.text(str(model.summary()))
+                
+                # Plot residuals analysis using separate plots
+                st.subheader('Residuals Analysis')
+                residuals_dist = plot_residuals(model)
+                
+                st.plotly_chart(residuals_dist, use_container_width=True)
+                
+                # Add interpretation of residuals
+                st.write("""
+                **Interpreting the Residuals:**
+                - The residual distribution should ideally be centered around zero and roughly normal
+                """)
+                
+                # Model metrics
+                st.subheader('Model Performance')
+                mae = mean_absolute_error(sales_data['Weekly_Sales'][-forecast_steps:], 
+                                        model.get_prediction(start=-forecast_steps).predicted_mean)
+                mse = mean_squared_error(sales_data['Weekly_Sales'][-forecast_steps:], 
+                                    model.get_prediction(start=-forecast_steps).predicted_mean)
+                rmse = np.sqrt(mse)
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric('MAE', f"${mae/1000000:,.2f}M")
+                with col2:
+                    st.metric('MSE', f"${mse/1000000:,.2f}M")
+                with col3:
+                    st.metric('RMSE', f"${rmse/1000000:,.2f}M")
+                
+                # Download forecast
+                forecast_df = pd.DataFrame({
+                    'Date': forecast_dates,
+                    'Predicted_Sales': forecast_mean
+                })
+                
+                st.download_button(
+                    label="Download ARIMA Forecast CSV",
+                    data=forecast_df.to_csv(index=False),
+                    file_name="walmart_arima_forecast.csv",
+                    mime="text/csv"
+                )
+                
+            except Exception as e:
+                st.error(f"Error in model training: {str(e)}")
+                st.write("Try adjusting the AR order or reducing the forecast steps.")
+
     def train_sarima_model(data, ar_order=1, seasonal_ar=1):
         """Train SARIMA model with seasonal components"""
 
@@ -398,6 +572,104 @@ def walmart_app():
         )
         
         return fig
+
+    def sarima_forecasting_page():
+        st.header('Walmart SARIMA Sales Forecasting')
+        
+        # Load and prepare data
+        df = load_data()
+        sales_data = prepare_data_for_arima(df)
+        
+        # Simplified model parameters
+        st.subheader('Model Configuration')
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            ar_order = st.number_input('AR Order (p)', 
+                                    min_value=1, max_value=5, value=2,
+                                    help='Order of the AutoRegressive component')
+        
+        with col2:
+            seasonal_ar = st.number_input('Seasonal AR Order (P)', 
+                                        min_value=1, max_value=2, value=1,
+                                        help='Order of the seasonal component')
+        
+        with col3:
+            forecast_steps = st.number_input('Forecast Steps (weeks)', 
+                                        min_value=1, max_value=52, value=12,
+                                        help='Number of weeks to forecast')
+        
+        # Train model
+        with st.spinner('Training SARIMA model...'):
+            try:
+                model = train_sarima_model(sales_data['Weekly_Sales'], 
+                                        ar_order=ar_order,
+                                        seasonal_ar=seasonal_ar)
+                
+                # Generate forecast
+                forecast = model.get_forecast(steps=forecast_steps)
+                forecast_mean = forecast.predicted_mean
+                
+                # Create forecast dates
+                last_date = sales_data.index[-1]
+                forecast_dates = pd.date_range(start=last_date, periods=forecast_steps+1, freq='W')[1:]
+                
+                # Plot forecast
+                st.subheader('Sales Forecast')
+                forecast_fig = plot_sarima_forecast(sales_data, forecast_mean, forecast_dates)
+                st.plotly_chart(forecast_fig, use_container_width=True)
+                
+                # Model evaluation and metrics
+                st.subheader('Model Performance')
+                
+                # Calculate metrics on the last portion of data (validation)
+                validation_steps = min(forecast_steps, 12)  # Use up to 12 weeks for validation
+                validation_pred = model.get_prediction(start=-validation_steps)
+                validation_mean = validation_pred.predicted_mean
+                actual_values = sales_data['Weekly_Sales'][-validation_steps:]
+                
+                mae = mean_absolute_error(actual_values, validation_mean)
+                mse = mean_squared_error(actual_values, validation_mean)
+                rmse = np.sqrt(mse)
+                mape = np.mean(np.abs((actual_values - validation_mean) / actual_values)) * 100
+                
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.write('MAE', f"${mae/1000000:,.2f}M")
+                with col2:
+                    st.write('MSE', f"${mse/1000000:,.2f}M")
+                with col3:
+                    st.write('RMSE', f"${rmse/1000000:,.2f}M")
+                with col4:
+                    st.write('MAPE', f"{mape:.2f}%")
+                
+                # Model interpretation
+                st.subheader('Model Interpretation')
+                st.write("""
+                **Key Observations:**
+                - The model captures both short-term patterns (through AR terms) and yearly seasonality
+                - MAPE (Mean Absolute Percentage Error) shows the average percentage deviation of forecasts
+                - Lower MAPE values indicate better forecast accuracy
+                """)
+                
+                # Download forecast
+                forecast_df = pd.DataFrame({
+                    'Date': forecast_dates,
+                    'Predicted_Sales': forecast_mean
+                })
+                
+                st.download_button(
+                    label="Download SARIMA Forecast CSV",
+                    data=forecast_df.to_csv(index=False),
+                    file_name="walmart_sarima_forecast.csv",
+                    mime="text/csv"
+                )
+                
+            except Exception as e:
+                st.error(f"Error in model training: {str(e)}")
+                st.write("Try adjusting the model parameters.")
+
 
     def create_animated_timeline(store_data):
         """Create an animated timeline of store sales"""
@@ -547,13 +819,16 @@ def walmart_app():
     # Sidebar for navigation
     st.sidebar.title('Navigation')
     page = st.sidebar.selectbox('Choose a page', 
-        ['Original Dataset Overview', 
+        ['Store Timeline',
+         'Sales Forecasting',
+        'Original Dataset Overview', 
         'Engineered Features Overview', 
         'Feature Distribution', 
         'Correlation Analysis',
         'Seasonal Sales Analysis',
-        'Store Timeline',
-        'Sales Forecasting'
+        'ARIMA Forecasting',
+        'Summary'
+       # 'SARIMA Forecasting',
         ])
         
     if page == 'Original Dataset Overview':
@@ -604,6 +879,25 @@ def walmart_app():
         else:
             st.write("No missing values found in the dataset!")
         
+        # Top 5 Stores Analysis
+        st.subheader('Top 5 Stores by Sales')
+        top_stores = df.groupby('Store')['Weekly_Sales'].sum().sort_values(ascending=False).head(5)
+
+        # Create bar plot for top stores
+        fig_top_stores = plt.figure(figsize=(10, 6))
+        plt.bar(top_stores.index.astype(str), top_stores.values)
+        plt.title('Top 5 Stores by Total Sales')
+        plt.xlabel('Store Number')
+        plt.ylabel('Total Sales ($)')
+        plt.xticks(rotation=0)
+        # Format y-axis labels to show millions
+        plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+        st.pyplot(fig_top_stores)
+
+        # Display actual numbers
+        st.write("Sales breakdown for top performing stores:")
+        for store, sales in top_stores.items():
+            st.write(f"Store {store}: ${sales:,.2f}")
 
     elif page == 'Engineered Features Overview':
         st.header('Engineered Features Overview')
@@ -653,74 +947,17 @@ def walmart_app():
         • Identify outliers and unusual patterns
         """)
         st.write("This page explores the distribution of the features throughout the dataset. We can see various stats of the data below the graph:")
-        # Select only the most relevant features for analysis
-        relevant_features = [
-            'Weekly_Sales',
-            'Temperature',
-            'Fuel_Price',
-            'CPI',
-            'Unemployment'
-        ]
-        
-        st.write("""
-        Analyze the distribution of key business metrics and external factors affecting sales. 
-        Select a feature below to see its distribution across all stores and time periods.
-        """)
-        
-        # Select column for distribution with descriptive labels
-        feature_labels = {
-            'Weekly_Sales': 'Weekly Sales ($)',
-            'Temperature': 'Temperature (°F)',
-            'Fuel_Price': 'Fuel Price ($/gallon)',
-            'CPI': 'Consumer Price Index',
-            'Unemployment': 'Unemployment Rate (%)'
-        }
-        
-        column = st.selectbox(
-            'Select a metric to visualize:', 
-            options=relevant_features,
-            format_func=lambda x: feature_labels[x]
-        )
-        
+        # Select column for distribution
+        column = st.selectbox('Select a column to visualize', df_engineered.select_dtypes(include=['float64', 'int64']).columns)
+            
         # Distribution plot
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.histplot(df_engineered[column], kde=True, ax=ax)
-        plt.title(f'Distribution of {feature_labels[column]}')
-        plt.xlabel(feature_labels[column])
-        plt.ylabel('Count')
+        plt.title(f'Distribution of {column}')
         st.pyplot(fig)
-        
-        # Basic statistics for the selected column with formatted output
-        st.subheader(f'Summary Statistics for {feature_labels[column]}')
-        stats = df_engineered[column].describe()
-        
-        # Format statistics based on the feature type
-        if column == 'Weekly_Sales':
-            stats_df = pd.DataFrame({
-                'Statistic': ['Count', 'Mean', 'Std Dev', 'Min', '25%', 'Median', '75%', 'Max'],
-                'Value': [f"{stats['count']:,.0f}",
-                        f"${stats['mean']:,.2f}",
-                        f"${stats['std']:,.2f}",
-                        f"${stats['min']:,.2f}",
-                        f"${stats['25%']:,.2f}",
-                        f"${stats['50%']:,.2f}",
-                        f"${stats['75%']:,.2f}",
-                        f"${stats['max']:,.2f}"]
-            })
-        else:
-            stats_df = pd.DataFrame({
-                'Statistic': ['Count', 'Mean', 'Std Dev', 'Min', '25%', 'Median', '75%', 'Max'],
-                'Value': [f"{stats['count']:,.0f}",
-                        f"{stats['mean']:.2f}",
-                        f"{stats['std']:.2f}",
-                        f"{stats['min']:.2f}",
-                        f"{stats['25%']:.2f}",
-                        f"{stats['50%']:.2f}",
-                        f"{stats['75%']:.2f}",
-                        f"{stats['max']:.2f}"]
-            })
-        
-        st.table(stats_df)
+            
+        # Basic statistics for the selected column
+        st.write(df_engineered[column].describe())
 
 
     # In the Seasonal Sales Analysis section:
@@ -809,7 +1046,7 @@ def walmart_app():
         - The average sales among top 5 stores was ${top_5_seasonal['Weekly_Sales'].mean():,.2f}
         - The difference between the highest and lowest performing stores among the top 5 is ${(top_5_seasonal['Weekly_Sales'].max() - top_5_seasonal['Weekly_Sales'].min()):,.2f}
         """)
-            
+        
         
     elif page == 'Correlation Analysis':
         st.header('Correlation Analysis')
@@ -847,244 +1084,18 @@ def walmart_app():
         """)
 
     elif page == 'Sales Forecasting':
-        st.header('Sales Forecasting Analysis')
-        st.write('We are using three separate models below to show the difference between the performance of the three models! This page aims to allow the users to play around with the models and also help educate the users about the different models!')
-
-        # Create tabs for different models
-        tab1, tab2, tab3, tab4 = st.tabs(["Facebook Prophet Model", "ARIMA Model", "SARIMA Model", "Models Comparison"])
+        st.info("""
+        Use Facebook's Prophet model to forecast future sales trends. This advanced forecasting tool accounts for multiple seasonal patterns and trends.
         
-        with tab1:
-            st.subheader("Prophet Forecasting")
-            st.info("""
-            Use Facebook's Prophet model to forecast future sales trends. This advanced forecasting tool accounts for multiple seasonal patterns and trends.
-            
-            Key Features:
-            • Interactive forecast visualization
-            • Adjustable forecast parameters
-            • Trend and seasonality decomposition
-            • Model performance metrics
-            • Downloadable forecast results
-            """)
-            
-            # Prophet model configuration and forecasting
-            # Data preparation
-            prophet_df = prepare_data_for_prophet(df)
-            
-            # Model parameters with enhanced descriptions
-            st.write("**Model Configuration**")
-            
-            # Add detailed descriptions for seasonality modes
-            seasonality_help = """
-            Choose how seasonal components combine with the trend:
-            
-            • Multiplicative: Use when the seasonal variations increase with the trend
-                - Best for data where seasonal fluctuations grow larger as the trend increases
-                - Example: If summer sales are typically 20% higher than average, they'll be 
-                proportionally higher when overall sales are higher
-                - Good for retail data where seasonal spikes grow with overall business growth
-            
-            • Additive: Use when the seasonal variations are consistent regardless of the trend
-                - Best for data where seasonal fluctuations remain relatively constant
-                - Example: If summer typically adds $1M to sales, it will add the same amount 
-                regardless of the overall trend
-                - Better for data where seasonal effects are more stable over time
-            """
-            
-            seasonality_mode = st.selectbox(
-                'Seasonality Mode',
-                options=['multiplicative', 'additive'],
-                help=seasonality_help,
-                key='prophet_seasonality'
-            )
-            
-            forecast_periods = st.slider(
-                'Forecast Periods (weeks)',
-                min_value=4,
-                max_value=52,
-                value=12,
-                help='Number of weeks to forecast into the future',
-                key='prophet_periods'
-            )
-            
-            # Train model
-            with st.spinner('Training Prophet model...'):
-                model = train_prophet_model(prophet_df, seasonality_mode)
-                forecast = make_future_predictions(model, periods=forecast_periods)
-                
-                # Display forecast plot
-                st.subheader('Sales Forecast')
-                forecast_plot = plot_forecast(prophet_df, forecast)
-                st.plotly_chart(forecast_plot, use_container_width=True)
-                
-                # Model evaluation with formatted metrics
-                st.subheader('Model Performance')
-                metrics = evaluate_forecast(model, prophet_df)
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    mae_m = metrics['MAE'] / 1_000_000
-                    st.metric("Mean Absolute Error", f"${mae_m:.2f}M")
-                with col2:
-                    mse_m = metrics['MSE'] / 1_000_000
-                    st.metric("Mean Squared Error", f"${mse_m:.2f}M")
-                with col3:
-                    rmse_m = metrics['RMSE'] / 1_000_000
-                    st.metric("Root Mean Squared Error", f"${rmse_m:.2f}M")
-        
-        with tab2:
-            st.subheader("ARIMA Forecasting")
-            st.info("""
-            Implement ARIMA (AutoRegressive Integrated Moving Average) models for time series forecasting. 
-            Perfect for capturing linear time series patterns.
-            
-            Key Features:
-            • Configurable ARIMA parameters
-            • Residual analysis and diagnostics
-            • Model performance evaluation
-            • Interactive forecast plots
-            • Comparative analysis with actual values
-            """)
-            
-            # ARIMA specific configurations
-            ar_order = st.number_input('AR Order (p)', 
-                                    min_value=1, 
-                                    max_value=5, 
-                                    value=1,
-                                    help='Order of the AutoRegressive component',
-                                    key='arima_ar_order')
-            
-            forecast_steps = st.number_input('Forecast Steps (weeks)', 
-                                        min_value=1, 
-                                        max_value=52, 
-                                        value=12,
-                                        help='Number of weeks to forecast',
-                                        key='arima_steps')
-            
-            # Prepare data and train ARIMA model
-            sales_data = prepare_data_for_arima(df)
-            
-            with st.spinner('Training ARIMA model...'):
-                try:
-                    model = train_arima_model(sales_data['Weekly_Sales'], ar_order=ar_order)
-                    
-                    # Generate forecast
-                    forecast = model.get_forecast(steps=forecast_steps)
-                    forecast_mean = forecast.predicted_mean
-                    
-                    # Create forecast dates
-                    last_date = sales_data.index[-1]
-                    forecast_dates = pd.date_range(start=last_date, 
-                                                periods=forecast_steps+1, 
-                                                freq='W')[1:]
-                    
-                    # Plot forecast
-                    st.subheader('Sales Forecast')
-                    forecast_fig = plot_arima_forecast(sales_data, forecast_mean, forecast_dates)
-                    st.plotly_chart(forecast_fig, use_container_width=True)
-                    
-                    # Model diagnostics in expander
-                    with st.expander("View Model Diagnostics"):
-                        st.text(str(model.summary()))
-                        
-                        residuals_time, residuals_dist = plot_residuals(model)
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.plotly_chart(residuals_time, use_container_width=True)
-                        with col2:
-                            st.plotly_chart(residuals_dist, use_container_width=True)
-                
-                except Exception as e:
-                    st.error(f"Error in ARIMA model training: {str(e)}")
-                    st.write("Try adjusting the AR order or reducing the forecast steps.")
-        
-        with tab3:
-            st.subheader("SARIMA Forecasting")
-            st.info("""
-            Use SARIMA (Seasonal ARIMA) models to capture both trend and seasonal patterns in the sales data. 
-            Ideal for data with strong seasonal components.
-            
-            Key Features:
-            • Seasonal component modeling
-            • Advanced parameter configuration
-            • Multiple performance metrics
-            • Animated forecast visualization
-            • Detailed model diagnostics
-            """)
-            
-            # SARIMA specific configurations
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                ar_order = st.number_input('AR Order (p)', 
-                                        min_value=1, 
-                                        max_value=5, 
-                                        value=2,
-                                        help='Order of the AutoRegressive component',
-                                        key='sarima_ar_order')
-            
-            with col2:
-                seasonal_ar = st.number_input('Seasonal AR Order (P)', 
-                                            min_value=1, 
-                                            max_value=2, 
-                                            value=1,
-                                            help='Order of the seasonal component',
-                                            key='sarima_seasonal_ar')
-            
-            with col3:
-                forecast_steps = st.number_input('Forecast Steps (weeks)', 
-                                            min_value=1, 
-                                            max_value=52, 
-                                            value=12,
-                                            help='Number of weeks to forecast',
-                                            key='sarima_steps')
-            
-            # Prepare data and train SARIMA model
-            sales_data = prepare_data_for_arima(df)
-            
-            with st.spinner('Training SARIMA model...'):
-                try:
-                    model = train_sarima_model(sales_data['Weekly_Sales'], 
-                                            ar_order=ar_order,
-                                            seasonal_ar=seasonal_ar)
-                    
-                    # Generate forecast
-                    forecast = model.get_forecast(steps=forecast_steps)
-                    forecast_mean = forecast.predicted_mean
-                    
-                    # Create forecast dates
-                    last_date = sales_data.index[-1]
-                    forecast_dates = pd.date_range(start=last_date, 
-                                                periods=forecast_steps+1, 
-                                                freq='W')[1:]
-                    
-                    # Plot forecast
-                    st.subheader('Sales Forecast')
-                    forecast_fig = plot_sarima_forecast(sales_data, forecast_mean, forecast_dates)
-                    st.plotly_chart(forecast_fig, use_container_width=True)
-                    
-                    # Calculate and display metrics
-                    validation_steps = min(forecast_steps, 12)
-                    validation_pred = model.get_prediction(start=-validation_steps)
-                    validation_mean = validation_pred.predicted_mean
-                    actual_values = sales_data['Weekly_Sales'][-validation_steps:]
-                    
-                    mae = mean_absolute_error(actual_values, validation_mean) / 1_000_000
-                    mse = mean_squared_error(actual_values, validation_mean) / 1_000_000
-                    rmse = np.sqrt(mse)
-                    
-                    # Display metrics
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric('MAE', f"${mae:.2f}M")
-                    with col2:
-                        st.metric('MSE', f"${mse:.2f}M")
-                    with col3:
-                        st.metric('RMSE', f"${rmse:.2f}M")
-                
-                except Exception as e:
-                    st.error(f"Error in SARIMA model training: {str(e)}")
-                    st.write("Try adjusting the model parameters.")
-        with tab4:
+        Key Features:
+        • Interactive forecast visualization
+        • Adjustable forecast parameters
+        • Trend and seasonality decomposition
+        • Model performance metrics
+        • Downloadable forecast results
+        """)
+        sales_forecasting_page()
+    elif page == 'Summary':
             st.subheader("Forecasting Models Comparison")
             
             st.write("""
@@ -1155,15 +1166,7 @@ def walmart_app():
                 ]
             })
             
-            metrics_comparison = pd.DataFrame({
-                'Model': ['Prophet', 'ARIMA', 'SARIMA'],
-                'Mean Absolute Error': ['$2.06M', f'${mae:.2f}M', '$3.51M'],
-                'Mean Squared Error': ['$11,414.32M', f'${mse:.2f}M', '$16,892.21M'],
-                'Root Mean Squared Error': ['$3.38M', f'${rmse:.2f}M', '$4,110.01M']
-            })
             
-            st.table(metrics_comparison)
-
             # Add interpretation of metrics
             st.write("""
             **Performance Analysis:**
@@ -1188,7 +1191,6 @@ def walmart_app():
             - The simpler ARIMA model performs better than the more complex SARIMA
             - The difference in MAE between best and worst performers is about $1.45M, which is significant for business planning
             """)
-            
             st.table(metrics_df)
 
             # Recommendations
@@ -1238,7 +1240,33 @@ def walmart_app():
             - Develop alert systems for forecast deviations
             """)
 
-            
+
+
+    elif page == 'ARIMA Forecasting':
+        st.info("""
+        Implement ARIMA (AutoRegressive Integrated Moving Average) models for time series forecasting. Perfect for capturing linear time series patterns.
+        
+        Key Features:
+        • Configurable ARIMA parameters
+        • Residual analysis and diagnostics
+        • Model performance evaluation
+        • Interactive forecast plots
+        • Comparative analysis with actual values
+        """)
+        arima_forecasting_page()
+
+    #elif page == 'SARIMA Forecasting':  
+    #    st.info("""
+    #    Use SARIMA (Seasonal ARIMA) models to capture both trend and seasonal patterns in the sales data. Ideal for data with strong seasonal components.
+    #    
+    #    Key Features:
+    #    • Seasonal component modeling
+    #    • Advanced parameter configuration
+    #    • Multiple performance metrics
+    #   • Animated forecast visualization
+    #    • Detailed model diagnostics
+    #    """)
+    #    sarima_forecasting_page()
 
     elif page == 'Store Timeline':
         st.info("""
@@ -1563,6 +1591,7 @@ def amazon_sales_app():
         fig.update_layout(height=900, title_text="Time Series Decomposition")
         return fig, decomposition
 
+
     def train_sarima_model(daily_sales, test_size=30):
         """Train SARIMA model with flexible forecast period"""
         # Split data into train and test
@@ -1596,7 +1625,7 @@ def amazon_sales_app():
         mse = ((test_data['total'] - forecast_mean) ** 2).mean()
         rmse = np.sqrt(mse)
         mae = np.abs(test_data['total'] - forecast_mean).mean()
-
+        
         metrics = {
             'RMSE': rmse,
             'MAE': mae,
@@ -1663,12 +1692,13 @@ def amazon_sales_app():
     # Sidebar navigation
     st.sidebar.title('Navigation')
     page = st.sidebar.selectbox('Choose a page', 
-        ['IDA',
+        ['Sales Prediction',
+        'IDA',
         'Order Analysis', 
         'Product Performance',
         'Financial Analysis',
-        'Regional Analysis',
-        'Sales Prediction'])
+        'Regional Analysis'
+        ])
 
     if page == 'IDA':
 
@@ -1957,20 +1987,14 @@ def amazon_sales_app():
         tab1, tab2 = st.tabs(["Random Forest Prediction", "SARIMA Prediction"])
 
         with tab1:
-            # Add a loading spinner while preparing the data
-            with st.spinner('Preparing prediction model...'):
-                # Prepare features
-                daily_aggs, label_encoders = prepare_enhanced_features(df)
+                with st.spinner('Preparing Random Forest prediction model...'):
+                    daily_aggs, label_encoders = prepare_enhanced_features(df)
+                    model, scaler, metrics, feature_importance, y_test, y_pred = train_enhanced_model(daily_aggs)
+                    fig_timeline, fig_scatter, fig_importance = analyze_predictions(
+                        y_test, y_pred, feature_importance, daily_aggs
+                    )
                 
-                # Train model
-                model, scaler, metrics, feature_importance, y_test, y_pred = train_enhanced_model(daily_aggs)
-                
-                # Create visualizations
-                fig_timeline, fig_scatter, fig_importance = analyze_predictions(
-                    y_test, y_pred, feature_importance, daily_aggs
-                )
-                
-                # Display metrics in columns
+                    # Display metrics in columns
                 st.subheader('Model Performance Metrics')
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -2013,94 +2037,92 @@ def amazon_sales_app():
                 The model's R² score indicates how well it explains the variance in sales. A score closer to 1.0 is better.
                 """)
 
-            with tab2:
-                with st.spinner('Preparing SARIMA prediction model...'):
-                    # Prepare data for SARIMA
-                    daily_sales = prepare_sarima_data(df)
-                    
-                    # Add slider for prediction timeline
-                    forecast_days = st.slider(
-                    "Select number of days to forecast",
-                    min_value=7,
-                    max_value=180,
-                    value=30,
-                    step=7,
-                    help="Choose how many days ahead you want to predict"
-                    )
+        with tab2:
+            with st.spinner('Preparing SARIMA prediction model...'):
+                # Prepare data for SARIMA
+                daily_sales = prepare_sarima_data(df)
+                
+                # Add slider for prediction timeline
+                forecast_days = st.slider(
+                "Select number of days to forecast",
+                min_value=7,
+                max_value=180,
+                value=30,
+                step=7,
+                help="Choose how many days ahead you want to predict"
+                )
 
-                    # Analyze time series components
-                    decomp_fig, decomposition = analyze_time_series(daily_sales)
-                    
-                    # Train base SARIMA model
-                    results, train, test = train_sarima_model(daily_sales)
-                   
-                    # Generate forecast for selected period
-                    forecast_mean, forecast_ci, test_data, sarima_metrics = generate_forecast(
-                    results, forecast_days)
-
-
-                    # Create prediction plots
-                    forecast_fig, comparison_fig = create_sarima_plots(
-                    daily_sales, forecast_mean, forecast_ci, test_data)
-
-                    # Display SARIMA results
-                    st.subheader(f'SARIMA Model Performance ({forecast_days} Day Forecast)')
-                    formatted_metrics = format_metrics(sarima_metrics)
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric('Mean Absolute Error', formatted_metrics['MAE'])
-                    with col2:
-                        st.metric('Root Mean Square Error', formatted_metrics['RMSE'])
-                    with col3:
-                        st.metric('Mean Square Error', formatted_metrics['MSE'])
-                    
-                    # Display forecast
-                    st.subheader(f'Sales Forecast (Next {forecast_days} Days)')
-                    st.plotly_chart(forecast_fig, use_container_width=True)
-
-                    # Display time series decomposition
-                    st.subheader('Time Series Decomposition')
-                    st.plotly_chart(decomp_fig, use_container_width=True)
-                    
-                    st.subheader('Understanding Time Series Decomposition')
-                    st.write("""
-                    Time series decomposition breaks down our sales data into four key components to better understand underlying patterns:
-
-                    1. **Original Data** (First Plot):
-                    - Shows the raw sales data over time
-                    - Includes all patterns, seasonality, and random fluctuations
-                    - Helps visualize the overall trend and complexity of the data
-
-                    2. **Trend** (Second Plot):
-                    - Represents the long-term progression of the sales
-                    - Removes seasonal and random variations
-                    - Shows whether sales are generally increasing, decreasing, or staying stable over time
-                    - Useful for understanding long-term business growth or decline
-
-                    3. **Seasonal Pattern** (Third Plot):
-                    - Shows recurring patterns at fixed intervals
-                    - In retail data, this often reflects:
-                        * Weekly patterns (weekend vs. weekday sales)
-                        * Monthly patterns (start/end of month variations)
-                        * Holiday season impacts
-                    - Helps in planning inventory and staffing based on expected cycles
-
-                    4. **Residuals** (Fourth Plot):
-                    - Shows what remains after removing trend and seasonality
-                    - Represents random fluctuations or 'noise' in the data
-                    - Large residuals might indicate:
-                        * Special events or promotions
-                        * Unexpected sales spikes or drops
-                        * Data quality issues
-
-                    **How to Use This Information:**
-                    - Use the trend to make long-term business decisions
-                    - Use seasonal patterns for short-term planning and scheduling
-                    - Monitor residuals to identify unusual events or potential issues
-                    - Combined analysis helps in making more accurate forecasts
-                    """)
+                # Analyze time series components
+                decomp_fig, decomposition = analyze_time_series(daily_sales)
+                
+                # Train base SARIMA model
+                results, train, test = train_sarima_model(daily_sales)
+                
+                # Generate forecast for selected period
+                forecast_mean, forecast_ci, test_data, sarima_metrics = generate_forecast(
+                results, forecast_days)
 
 
+                # Create prediction plots
+                forecast_fig, comparison_fig = create_sarima_plots(
+                daily_sales, forecast_mean, forecast_ci, test_data)
+
+                # Display SARIMA results
+                st.subheader(f'SARIMA Model Performance ({forecast_days} Day Forecast)')
+                formatted_metrics = format_metrics(sarima_metrics)
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric('Mean Absolute Error', formatted_metrics['MAE'])
+                with col2:
+                    st.metric('Root Mean Square Error', formatted_metrics['RMSE'])
+                with col3:
+                    st.metric('Mean Square Error', formatted_metrics['MSE'])
+                
+                # Display forecast
+                st.subheader(f'Sales Forecast (Next {forecast_days} Days)')
+                st.plotly_chart(forecast_fig, use_container_width=True)
+
+                # Display time series decomposition
+                st.subheader('Time Series Decomposition')
+                st.plotly_chart(decomp_fig, use_container_width=True)
+                
+                st.subheader('Understanding Time Series Decomposition')
+                st.write("""
+                Time series decomposition breaks down our sales data into four key components to better understand underlying patterns:
+
+                1. **Original Data** (First Plot):
+                - Shows the raw sales data over time
+                - Includes all patterns, seasonality, and random fluctuations
+                - Helps visualize the overall trend and complexity of the data
+
+                2. **Trend** (Second Plot):
+                - Represents the long-term progression of the sales
+                - Removes seasonal and random variations
+                - Shows whether sales are generally increasing, decreasing, or staying stable over time
+                - Useful for understanding long-term business growth or decline
+
+                3. **Seasonal Pattern** (Third Plot):
+                - Shows recurring patterns at fixed intervals
+                - In retail data, this often reflects:
+                    * Weekly patterns (weekend vs. weekday sales)
+                    * Monthly patterns (start/end of month variations)
+                    * Holiday season impacts
+                - Helps in planning inventory and staffing based on expected cycles
+
+                4. **Residuals** (Fourth Plot):
+                - Shows what remains after removing trend and seasonality
+                - Represents random fluctuations or 'noise' in the data
+                - Large residuals might indicate:
+                    * Special events or promotions
+                    * Unexpected sales spikes or drops
+                    * Data quality issues
+
+                **How to Use This Information:**
+                - Use the trend to make long-term business decisions
+                - Use seasonal patterns for short-term planning and scheduling
+                - Monitor residuals to identify unusual events or potential issues
+                - Combined analysis helps in making more accurate forecasts
+                """)
 
 def amazon_sentiment_app():
     # Clear any existing Streamlit state
@@ -2299,9 +2321,62 @@ def amazon_sentiment_app():
         
         return df_sentiment
 
+    def display_sentiment_analysis(df_sentiment):
+        """Create visualizations for sentiment analysis"""
+        st.header("Review Sentiment Analysis")
+        
+        # Overall sentiment distribution
+        st.subheader("Sentiment Distribution")
+        sentiment_counts = df_sentiment['sentiment_label'].value_counts()
+        fig = px.pie(
+            values=sentiment_counts.values,
+            names=sentiment_counts.index,
+            title="Distribution of Review Sentiments"
+        )
+        st.plotly_chart(fig)
+        
+        # Average sentiment by product category
+        st.subheader("Average Sentiment by Category")
+        category_sentiment = df_sentiment.groupby('main_category')['overall_sentiment'].mean().sort_values()
+        fig = px.bar(
+            x=category_sentiment.index,
+            y=category_sentiment.values,
+            title="Average Sentiment Score by Category"
+        )
+        st.plotly_chart(fig)
+        
+        # Sentiment vs Rating correlation
+        st.subheader("Sentiment vs Rating Correlation")
+        fig = px.scatter(
+            df_sentiment,
+            x='overall_sentiment',
+            y='rating',
+            title="Sentiment Score vs Product Rating",
+            trendline="ols"
+        )
+        st.plotly_chart(fig)
+        
+        # Example reviews by sentiment
+        st.subheader("Example Reviews by Sentiment")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("Most Positive Reviews")
+            positive_reviews = df_sentiment.nlargest(5, 'overall_sentiment')[
+                ['product_name', 'cleaned_title', 'cleaned_content', 'overall_sentiment']
+            ]
+            st.write(positive_reviews)
+        
+        with col2:
+            st.write("Most Negative Reviews")
+            negative_reviews = df_sentiment.nsmallest(5, 'overall_sentiment')[
+                ['product_name', 'cleaned_title', 'cleaned_content', 'overall_sentiment']
+            ]
+            st.write(negative_reviews)
 
     def add_sentiment_analysis_page(df):
             df_sentiment = analyze_review_sentiment(df)
+            display_sentiment_analysis(df_sentiment)
             return df_sentiment
 
     def generate_wordcloud(texts, title):
@@ -2383,7 +2458,6 @@ def amazon_sentiment_app():
                     step=0.1,
                     help="Reviews with sentiment score below this value are considered negative"
                 )
-    
         # Add a separator
         st.markdown("---")
         
@@ -2462,20 +2536,6 @@ def amazon_sentiment_app():
             # Previous detailed analysis code remains the same
             st.subheader("Sentiment Score Distribution")
             
-            st.write("""
-            ### Understanding Sentiment Score Distribution
-
-            The histogram below shows the distribution of sentiment scores across all reviews. This distribution helps us 
-            understand the overall customer sentiment landscape and identify patterns in customer feedback.
-
-            **What Sentiment Scores Mean:**
-            - **Strong Positive (0.5 to 1.0)**: Very satisfied customers, enthusiastic praise
-            - **Moderate Positive (0.1 to 0.5)**: Generally satisfied customers
-            - **Neutral (-0.1 to 0.1)**: Mixed or neutral opinions
-            - **Moderate Negative (-0.5 to -0.1)**: Some dissatisfaction
-            - **Strong Negative (-1.0 to -0.5)**: Significant customer concerns
-            """)
-
             hist_data = np.histogram(category_data['overall_sentiment'], bins=30)
             max_height = max(hist_data[0])
             
@@ -2492,64 +2552,11 @@ def amazon_sentiment_app():
             fig_hist.add_vline(x=negative_threshold, line_dash="dash", line_color="red")
             
             st.plotly_chart(fig_hist, use_container_width=True)
-
-            st.write("""
-            ### Key Insights from the Distribution:
-
-            **1. Distribution Shape:**
-            - **Peak Location**: Shows the most common sentiment score
-            - **Symmetry**: Indicates balance between positive and negative reviews
-            - **Spread**: Shows the range of customer opinions
-
-            **2. Threshold Analysis:**
-            - Green line: Positive sentiment threshold
-            - Red line: Negative sentiment threshold
-            - Reviews between lines considered neutral
-
-            **3. Pattern Interpretation:**
-            - **Single Peak**: Most customers share similar sentiments
-            - **Multiple Peaks**: Different customer segments with varying opinions
-            - **Long Tails**: Presence of extreme opinions
-
-            **4. Business Implications:**
-            - High positive skew: Strong customer satisfaction
-            - High negative skew: Areas needing improvement
-            - Wide spread: Inconsistent customer experience
-            """)
-
-
+        
         with tab3:
             # Previous rating analysis code remains the same
             st.subheader("Sentiment vs Rating Analysis")
             
-            # Add explanation before the plot
-            st.write("""
-            ### Understanding Sentiment Score vs Product Rating
-
-            This analysis compares two different measures of customer satisfaction:
-
-            **Sentiment Score (-1 to 1)**:
-            - Analyzes the actual language and emotion in review text
-            - -1: Extremely negative sentiment
-            - 0: Neutral sentiment
-            - +1: Extremely positive sentiment
-
-            **Product Rating (1 to 5 stars)**:
-            - Traditional star rating given by customers
-            - 1: Lowest satisfaction
-            - 5: Highest satisfaction
-
-            ### What This Comparison Tells Us:
-            1. **Correlation Strength**: 
-            - A strong correlation indicates ratings consistently match review sentiments
-            - Weak correlation might reveal disconnects between ratings and written feedback
-
-            2. **Key Insights**:
-            - High rating + Low sentiment: Customer might be polite but expressing concerns
-            - Low rating + High sentiment: Could indicate specific issues despite overall satisfaction
-            - Matching trends: Validates customer feedback consistency
-            """)
-
             if 'rating' in category_data.columns:
                 fig_scatter = px.scatter(
                     category_data,
@@ -2566,42 +2573,14 @@ def amazon_sentiment_app():
                 
                 st.plotly_chart(fig_scatter, use_container_width=True)
                 
-                # Add interpretation after the plot
-                st.write("""
-                ### How to Interpret the Plot:
-
-                **Trend Line**:
-                - Upward slope: Positive correlation between ratings and sentiment
-                - Steeper slope: Stronger relationship
-                - Flatter slope: Weaker relationship
-
-                **Data Points**:
-                - Clustered points: Common rating-sentiment combinations
-                - Outliers: Reviews requiring attention
-                - Colors: Different sentiment categories
-
-                **Business Applications**:
-                - Identify reviews where rating and sentiment don't match
-                - Find products with consistent feedback patterns
-                - Spot potential rating system biases
-                """)
-
                 col1, col2 = st.columns(2)
                 with col1:
                     correlation = category_data['rating'].corr(category_data['overall_sentiment'])
-                    st.metric(
-                    "Correlation Coefficient", 
-                    f"{correlation:.2f}",
-                    help="1.0 indicates perfect positive correlation, -1.0 perfect negative correlation, 0 no correlation"
-                )
+                    st.metric("Correlation: Rating vs Sentiment", f"{correlation:.2f}")
                 
                 with col2:
                     avg_sentiment = category_data['overall_sentiment'].mean()
-                    st.metric(
-                    "Average Sentiment Score", 
-                    f"{avg_sentiment:.2f}",
-                    help="Average sentiment across all reviews (-1 to +1)"
-                )
+                    st.metric("Average Sentiment Score", f"{avg_sentiment:.2f}")
         
         with tab4:
             st.subheader("Word Clouds by Sentiment")
@@ -2639,14 +2618,14 @@ def amazon_sentiment_app():
     # Sidebar navigation
     st.sidebar.title('Navigation')
     page = st.sidebar.selectbox('Choose a page', 
-        ['Initial Data Assessment',
+        ['Product Recommendations',
+        'Initial Data Assessment',
         'Data Transformation', 
         'Product Overview',
         'Pricing Analysis',
         'Rating Analysis',
-        'Review Analysis',
-        #'Sentiment Analysis',
-        'Product Recommendations'])
+        'Sentiment Analysis'
+        ])
 
     if page == 'Initial Data Assessment':
         st.header('Initial Data Assessment')
@@ -2679,8 +2658,6 @@ def amazon_sentiment_app():
         # Sample data
         st.subheader('Sample Data Preview')
         st.write(df.head())
-
-        
 
     elif page == 'Data Transformation':
         st.header('Data Transformation Steps')
@@ -2747,8 +2724,7 @@ def amazon_sentiment_app():
     elif page == 'Product Overview':
         final_df, _ = transform_data(df)
         st.header('Product Overview')
-        st.write('There are lots of categories in our dataset that have only one product hence you might see some categories with only one product.')
-
+        
         # Category distribution
         st.subheader('Product Categories Distribution')
         category_counts = final_df['main_category'].value_counts()
@@ -2782,7 +2758,6 @@ def amazon_sentiment_app():
             hover_data=['rating_count']
         )
 
-        # Update layout for better readability
         fig.update_layout(
             xaxis_title="Product Name",  # Changed from product_name
             yaxis_title="Rating",
@@ -2812,7 +2787,7 @@ def amazon_sentiment_app():
             title=f'Top 10 Rated Products in {selected_category}',
             hover_data=['actual_price', 'discounted_price', 'discount_percentage', 'rating_count']
         )
-
+        
         # Update layout for better readability
         fig.update_layout(
             xaxis_title="Product Name",  # Changed from product_name
@@ -2822,12 +2797,28 @@ def amazon_sentiment_app():
                         for name in top_products['product_name']],
             xaxis_tickvals=list(range(len(top_products)))
         )
+        
         st.plotly_chart(fig, use_container_width=True)
         st.write(top_products)
 
     elif page == 'Pricing Analysis':
         final_df, _ = transform_data(df)
         st.header('Pricing Analysis')
+
+        # Add Category Selector
+        st.subheader('Category-wise Product Analysis')
+
+        categories = sorted(final_df['main_category'].unique())
+        selected_category = st.selectbox('Select Product Category:', categories)
+        category_df = final_df[final_df['main_category'] == selected_category]
+        # Get top 10 products in selected category based on ratings
+        top_products = category_df.nlargest(10, 'rating')
+        
+        # Display detailed information in a table
+        st.subheader('Detailed Information for Top Products')
+        display_cols = ['product_name', 'rating', 'rating_count', 
+                    'actual_price', 'discounted_price', 'discount_percentage']
+        st.write(top_products[display_cols])
 
         # Discount analysis
         st.subheader('Discount Analysis')
@@ -2838,12 +2829,6 @@ def amazon_sentiment_app():
             title='Distribution of Discount Percentages',
             nbins=20
         )
-
-        fig.update_layout(
-            xaxis_title="Discount Percentage",
-            yaxis_title="Count of products"
-        )
-
         st.plotly_chart(fig, use_container_width=True)
         
         # Summary section using columns
@@ -2853,11 +2838,11 @@ def amazon_sentiment_app():
             st.subheader("Most Common Discounts")
             # Get mode of discount percentage
             common_discount = final_df['discount_percentage'].mode().iloc[0]
-            st.write(f"Most frequent discount: {common_discount}")
+            st.write(f"Most frequent discount: {common_discount}%")
             
             # Count of products with this discount
             count_common = len(final_df[final_df['discount_percentage'] == common_discount])
-            st.write(f"Number of products with {common_discount} discount: {count_common}")
+            st.write(f"Number of products with {common_discount}% discount: {count_common}")
             
             # Show some products with this discount
             st.write("Sample products with this discount:")
@@ -2881,6 +2866,16 @@ def amazon_sentiment_app():
                 - Discounted Price: ₹{row['discounted_price']:,.2f}
                 """)
 
+        # Price by category
+        st.subheader('Price Range by Category')
+        
+        fig = px.box(
+            final_df,
+            x='main_category',
+            y='actual_price',
+            title='Price Distribution by Category'
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
     elif page == 'Rating Analysis':
         # Get transformed data
@@ -2972,52 +2967,10 @@ def amazon_sentiment_app():
         except Exception as e:
             st.error(f"Failed to transform the data: {str(e)}")
 
-    elif page == 'Review Analysis':
-        final_df, _ = transform_data(df)
-        st.header('Review Analysis')
-        
-        # Review count distribution
-        st.subheader('Review Count Distribution')
-        
-        fig = px.histogram(
-            final_df,
-            x='rating_count',
-            title='Distribution of Review Counts',
-            nbins=50
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Most reviewed products
-        st.subheader('Most Reviewed Products')
-        top_reviewed = final_df.nlargest(10, 'rating_count')
 
-        # Create truncated names for display
-        top_reviewed['display_name'] = top_reviewed['product_name'].apply(
-            lambda x: x[:50] + '...' if len(x) > 50 else x
-        )
-
-        fig = px.bar(
-            top_reviewed,
-            x='display_name',
-            y='rating_count',
-            title='Products with Most Reviews',
-            hover_data={'display_name': False, 'product_name': True, 'rating_count': True}
-        )
-
-        # Update layout for better readability
-        fig.update_layout(
-            xaxis_title="Product Name",
-            yaxis_title="Number of Reviews",
-            xaxis={'tickangle': 45}
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-        
-
-    #elif page == 'Sentiment Analysis':
-        #df_sentiment = add_sentiment_analysis_page(df)
-        #create_sentiment_visualization(df_sentiment)
+    elif page == 'Sentiment Analysis':
+        df_sentiment = add_sentiment_analysis_page(df)
+        create_sentiment_visualization(df_sentiment)
     
     elif page == "Product Recommendations":
         st.header('Category-Based Recommendations')
@@ -3033,8 +2986,7 @@ def amazon_sentiment_app():
         
         # Filter sub-categories based on main category
         sub_categories = sorted(df_transformed[
-            df_transformed['main_category'] == selected_main_cat
-        ]['sub_category'].unique())
+            df_transformed['main_category'] == selected_main_cat]['sub_category'].unique())
         selected_sub_cat = st.selectbox(
             'Select Sub-Category:',
             options=sub_categories
