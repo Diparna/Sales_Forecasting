@@ -121,7 +121,8 @@ def walmart_app():
         # Rename columns to Prophet requirements
         prophet_df = daily_sales.rename(columns={'Date': 'ds', 'Weekly_Sales': 'y'})
         return prophet_df
-
+    
+    @st.cache_resource
     def train_prophet_model(df, seasonality_mode='multiplicative'):
         """Train Prophet model with specified parameters"""
         # Initialize model
@@ -270,6 +271,7 @@ def walmart_app():
         daily_sales.set_index('Date', inplace=True)
         return daily_sales
 
+    @st.cache_resource
     def train_arima_model(data, ar_order=1):
         """Train SARIMA model with specified parameters"""
         model = SARIMAX(
@@ -346,6 +348,7 @@ def walmart_app():
         
         return residuals_time, residuals_dist
 
+    @st.cache_resource
     def train_sarima_model(data, ar_order=1, seasonal_ar=1):
         """Train SARIMA model with seasonal components"""
 
