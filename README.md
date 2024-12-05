@@ -133,3 +133,33 @@ The Retail Analytics Suite is a comprehensive data analysis and visualization pl
 - Specifically tuned for social media text
 - Handles emoji and punctuation
 - Multiple sentiment dimensions
+
+# Installation & Setup
+
+# Clone the repository
+git clone [your-repository-url]
+
+# Install required packages
+pip install -r requirements.txt
+
+# Run the Streamlit app
+streamlit run app.py
+
+# Usage Guide
+
+### Data Upload:
+
+Format requirements
+Supported file types
+
+
+### Making Predictions:
+
+Step-by-step guide
+Input parameters explanation
+
+
+### Interpreting Results:
+
+Understanding the visualizations
+Reading the forecasts
