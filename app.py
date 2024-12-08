@@ -35,7 +35,7 @@ st.set_page_config(
 
 def main():
     st.title("Retail Analytics Suite")
-    
+    st.write("Please use the dark mode for optimal experience!")
     # Add app selection to sidebar
     st.sidebar.title("Navigation")
     app_selection = st.sidebar.radio(
