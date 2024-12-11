@@ -20,6 +20,7 @@
    - [Interpreting Results](#interpreting-results)  
 7. [Real-World Applications](#real-world-applications)  
 8. [Educational Applications](#educational-applications)  
+9. [App Breakdown](#app-breakdown)  
 
 ## Project Overview
 The Retail Analytics Suite is a comprehensive data analysis and visualization platform that combines sales data from multiple retail sources to provide actionable insights and predictive analytics. The application analyzes Walmart sales data, Amazon sales data, and Amazon customer sentiment data to deliver a holistic view of retail performance and customer satisfaction.
@@ -199,3 +200,39 @@ streamlit run app.py
 ### Coding Workshops
 - Serve as a tool for teaching Streamlit, Python, and data visualization techniques  
 - Show how to integrate data science with app development to build impactful tools
+
+## App Breakdown
+### Home Page
+- Default landing page with an overview of the three main analyses  
+
+### Walmart Sales Analysis Pages:
+1. **Store Timeline**
+2. **Sales Forecasting**
+3. **Original Dataset Overview**
+4. **Engineered Features Overview**
+5. **Feature Distribution**
+6. **Correlation Analysis**
+7. **Seasonal Sales Analysis**
+8. **ARIMA Forecasting**
+9. **Summary**  
+
+### Amazon Sales Prediction Pages:
+1. **Sales Prediction**
+2. **IDA (Initial Data Assessment)**
+3. **Data Transformation**
+4. **Product Overview**
+5. **Pricing Analysis**
+6. **Rating Analysis**  
+
+### Amazon Sentiment Analysis Pages:
+1. **Product Recommendations**
+2. **Sentiment Distribution Tab:**
+   - Distribution analysis
+   - Summary statistics
+3. **Detailed Analysis Tab:**
+   - Sentiment score distribution
+4. **Rating Analysis Tab:**
+   - Sentiment vs rating visualization
+   - Correlation metrics
+5. **Word Clouds Tab:**
+   - Word clouds for positive, neutral, and negative reviews
