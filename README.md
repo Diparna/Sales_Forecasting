@@ -1,6 +1,10 @@
 # Retail Analytics Suite
 
-# Project Overview
+# Table of Contents
+
+1. Project Overview
+
+## Project Overview
 The Retail Analytics Suite is a comprehensive data analysis and visualization platform that combines sales data from multiple retail sources to provide actionable insights and predictive analytics. The application analyzes Walmart sales data, Amazon sales data, and Amazon customer sentiment data to deliver a holistic view of retail performance and customer satisfaction.
 
 # Data Sources
