@@ -24,8 +24,15 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from plotly.subplots import make_subplots
 import nltk
 
-nltk.download('vader_lexicon')
-nltk.download('punkt_tab')
+try:
+    nltk.data.find('sentiment/vader_lexicon')
+except LookupError:
+    nltk.download('vader_lexicon', quiet=True)
+
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', quiet=True)
 
 st.set_page_config(
     page_title="Retail Analytics Suite",
